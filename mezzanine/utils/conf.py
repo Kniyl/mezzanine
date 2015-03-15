@@ -115,6 +115,14 @@ def set_dynamic_settings(s):
             # Force i18n so we are assured that modeltranslation is active
             s["USE_I18N"] = True
             append("INSTALLED_APPS", "modeltranslation")
+            # Ensure mezzanine.pages falls before any apps that subclass the
+            # Page model, otherwise modeltranslation doesn't work.
+            get_pos = lambda n, k: s[n].index(k) if k in s[n] else len(s[n])
+            page_pos = get_pos("INSTALLED_APPS", "mezzanine.pages")
+            subclass_pos = min([get_pos("INSTALLED_APPS", app) for app in
+                ("mezzanine.forms", "mezzanine.gallery", "cartridge.shop")])
+            if page_pos > subclass_pos:
+                move("INSTALLED_APPS", "mezzanine.pages", subclass_pos)
 
     # Setup for optional apps.
     optional = list(s.get("OPTIONAL_APPS", []))
@@ -169,13 +177,6 @@ def set_dynamic_settings(s):
         # Ensure debug_toolbar is before modeltranslation to avoid
         # races for configuration.
         move("INSTALLED_APPS", "debug_toolbar", 0)
-
-    # Ensure mezzanine.pages falls before any apps that subclass the
-    # Page model, otherwise modeltranslation doesn't work. To simplify
-    # things, we don't actually check for Page subclasses, and just
-    # force the pages app to the top.
-    if "mezzanine.pages" in s["INSTALLED_APPS"]:
-        move("INSTALLED_APPS", "mezzanine.pages", 0)
 
     # If compressor installed, ensure it's configured and make
     # Mezzanine's settings available to its offline context,
